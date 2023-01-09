@@ -3,10 +3,10 @@ FROM python:3.11-slim-bullseye
 LABEL author "git-ogawa" \
     version "0.1.0"
 
-COPY . /logcounter
-RUN pip install --no-cache /logcounter && \
-    rm -rf /logcounter
+COPY . /pylogcounter
+RUN pip install --no-cache /pylogcounter && \
+    rm -rf /pylogcounter
 
 WORKDIR /work
-ENTRYPOINT [ "logcounter" ]
+ENTRYPOINT [ "pylogcounter" ]
 CMD [ "" ]

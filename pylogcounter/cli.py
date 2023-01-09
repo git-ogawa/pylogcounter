@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 import argparse
 import sys
-from typing import Dict, Optional
+from typing import Dict, Optional, Union, Type
 
-from logcounter.counter import (
+from pylogcounter.counter import (
     BaseCounter,
     DailyCounter,
     HourlyCounter,
@@ -11,8 +11,8 @@ from logcounter.counter import (
     SecondCounter,
     TotalCounter,
 )
-from logcounter.parse import DirectiveError, Parser, ParserError
-from logcounter.writer import StdoutWriter, Writer, YamlWriter
+from pylogcounter.parse import DirectiveError, Parser, ParserError
+from pylogcounter.writer import StdoutWriter, YamlWriter
 
 
 class CLI:
@@ -34,7 +34,7 @@ class CLI:
         self.to_csv = to_csv
         self.verbose = verbose
 
-        self.writer: Optional[Writer] = None
+        self.writer: Type[Union[StdoutWriter, YamlWriter]] = StdoutWriter
         self._set()
 
     def _set(self) -> None:
@@ -54,6 +54,7 @@ class CLI:
         except DirectiveError:
             raise
 
+        assert p.timestamp_format is not None
         bc = BaseCounter(res, p.columns, p.timestamp_format)
 
         tc = TotalCounter(bc.df)
@@ -141,16 +142,21 @@ def main() -> None:
         "-c",
         "--csv",
         action="store_true",
-        help="If set, the resampled data are ouput to csv.",
+        help="If set, the resampled data are output to csv.",
     )
     parser.add_argument(
         "-b",
         "--byte",
         metavar="",
         default="b",
-        help="Specify prefix unit of byte (k, m, g, t are kilo, mega, giga, tela respectively.)",
+        help="Specify prefix unit of byte (k, m, g, t are kilo, mega, giga, tera respectively.)",
     )
-    parser.add_argument("--only", metavar="", type=str, help="aaa")
+    parser.add_argument(
+        "--only",
+        metavar="",
+        type=str,
+        help="Show only the result of the specify time range.",
+    )
 
     args = parser.parse_args()
 

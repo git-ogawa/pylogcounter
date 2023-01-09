@@ -4,7 +4,7 @@ from typing import Union
 
 import yaml
 
-from logcounter.counter import BaseCounter
+from pylogcounter.counter import BaseCounter
 
 
 class Writer:
@@ -77,7 +77,11 @@ class StdoutWriter(Writer):
         self._calc_width()
 
     def _calc_width(self):
-        self.col_width = int(round((self.width - ((self.columns) - (self.columns - 1))) / self.columns, 0))
+        self.col_width = int(
+            round(
+                (self.width - ((self.columns) - (self.columns - 1))) / self.columns, 0
+            )
+        )
         self.unit_width = int(round(self.col_width * self.unit_width_ratio, 0))
         space = self.col_width - self.unit_width
         self.col_width = int(round(self.col_width + (space / self.columns - 1)))
@@ -99,8 +103,12 @@ class StdoutWriter(Writer):
             f"{self.header[0]:<{self.col_width}}| {self.header[1]:<{self.col_width}}| {self.header[2]:<{self.unit_width}}"
         )
         print("-" * self.width)
-        print(f"{'Start time':<{self.col_width}}| {start_time:<{self.col_width}}| {'':<{self.unit_width}}")
-        print(f"{'End time':<{self.col_width}}| {end_time:<{self.col_width}}| {'':<{self.unit_width}}")
+        print(
+            f"{'Start time':<{self.col_width}}| {start_time:<{self.col_width}}| {'':<{self.unit_width}}"
+        )
+        print(
+            f"{'End time':<{self.col_width}}| {end_time:<{self.col_width}}| {'':<{self.unit_width}}"
+        )
         if self.kind == "Total":
             print(
                 f"{'Elapsed time':<{self.col_width}}| {self.timedelta:<{self.col_width}}| {self.time_unit:<{self.unit_width}}"
@@ -110,30 +118,52 @@ class StdoutWriter(Writer):
             )
             byte = self.convert_byte(self.total_bytes)
             u = self.get_unit()
-            print(f"{'Total bytes':<{self.col_width}}| {byte:<{self.col_width}}| {u:<{self.unit_width}}")
+            print(
+                f"{'Total bytes':<{self.col_width}}| {byte:<{self.col_width}}| {u:<{self.unit_width}}"
+            )
         ml = round(self.mean_lines, self.decimal_point)
-        print(f"{'Mean line':<{self.col_width}}| {ml:<{self.col_width}}| {per_line:<{self.unit_width}}")
+        print(
+            f"{'Mean line':<{self.col_width}}| {ml:<{self.col_width}}| {per_line:<{self.unit_width}}"
+        )
         if self.verbose is True:
             mx = round(self.mean_lines_max, self.decimal_point)
             mi = round(self.mean_lines_min, self.decimal_point)
             ms = round(self.mean_lines_std, self.decimal_point)
             m5 = round(self.mean_lines_50per, self.decimal_point)
-            print(f"{'Mean line max':<{self.col_width}}| {mx:<{self.col_width}}| {per_line:<{self.unit_width}}")
-            print(f"{'Mean line min':<{self.col_width}}| {mi:<{self.col_width}}| {per_line:<{self.unit_width}}")
-            print(f"{'Mean line std':<{self.col_width}}| {ms:<{self.col_width}}| {per_line:<{self.unit_width}}")
-            print(f"{'Mean line 50%':<{self.col_width}}| {m5:<{self.col_width}}| {per_line:<{self.unit_width}}")
+            print(
+                f"{'Mean line max':<{self.col_width}}| {mx:<{self.col_width}}| {per_line:<{self.unit_width}}"
+            )
+            print(
+                f"{'Mean line min':<{self.col_width}}| {mi:<{self.col_width}}| {per_line:<{self.unit_width}}"
+            )
+            print(
+                f"{'Mean line std':<{self.col_width}}| {ms:<{self.col_width}}| {per_line:<{self.unit_width}}"
+            )
+            print(
+                f"{'Mean line 50%':<{self.col_width}}| {m5:<{self.col_width}}| {per_line:<{self.unit_width}}"
+            )
 
         mb = self.convert_byte(self.mean_bytes)
-        print(f"{'Mean bytes':<{self.col_width}}| {mb:<{self.col_width}}| {per_byte:<{self.unit_width}}")
+        print(
+            f"{'Mean bytes':<{self.col_width}}| {mb:<{self.col_width}}| {per_byte:<{self.unit_width}}"
+        )
         if self.verbose is True:
             mx = self.convert_byte(self.mean_bytes_max)
             mi = self.convert_byte(self.mean_bytes_min)
             ms = self.convert_byte(self.mean_bytes_std)
             m5 = self.convert_byte(self.mean_bytes_50per)
-            print(f"{'Mean bytes max':<{self.col_width}}| {mx:<{self.col_width}}| {per_byte:<{self.unit_width}}")
-            print(f"{'Mean bytes min':<{self.col_width}}| {mi:<{self.col_width}}| {per_byte:<{self.unit_width}}")
-            print(f"{'Mean bytes std':<{self.col_width}}| {ms:<{self.col_width}}| {per_byte:<{self.unit_width}}")
-            print(f"{'Mean bytes 50%':<{self.col_width}}| {m5:<{self.col_width}}| {per_byte:<{self.unit_width}}")
+            print(
+                f"{'Mean bytes max':<{self.col_width}}| {mx:<{self.col_width}}| {per_byte:<{self.unit_width}}"
+            )
+            print(
+                f"{'Mean bytes min':<{self.col_width}}| {mi:<{self.col_width}}| {per_byte:<{self.unit_width}}"
+            )
+            print(
+                f"{'Mean bytes std':<{self.col_width}}| {ms:<{self.col_width}}| {per_byte:<{self.unit_width}}"
+            )
+            print(
+                f"{'Mean bytes 50%':<{self.col_width}}| {m5:<{self.col_width}}| {per_byte:<{self.unit_width}}"
+            )
 
         print("-" * self.width)
         print()
