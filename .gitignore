@@ -2,5 +2,9 @@ tmp/
 *.egg-info/
 __pycache__/
 
-# Output by logcounter
-logcounter_csv/
+# Output by pylogcounter
+pylogcounter_csv/
+
+# Package
+build/
+dist/

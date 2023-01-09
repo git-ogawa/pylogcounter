@@ -1,11 +1,17 @@
-# logcounter
-Logcounter is a simple, compact CLI to check lines and size of a log file. It is also possible to resample the contents based on timestamps and show the mean of lines and size per minute or per hour.
+# pylogcounter
+[![LICENSE](https://img.shields.io/github/license/git-ogawa/pylogcounter?style=plastic)](https://github.com/git-ogawa/pylogcounter/blob/main/LICENSE)
+[![Version](https://img.shields.io/pypi/v/pylogcounter?style=plastic)](https://pypi.python.org/pypi/pylogcounter/)
+![Python versions](https://img.shields.io/pypi/pyversions/pylogcounter?style=plastic)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
+[![Downloads](https://static.pepy.tech/badge/pylogcounter)](https://pepy.tech/project/pylogcounter)
+
+pylogcounter is a simple, compact CLI to check lines and size of a log file. It is also possible to resample the contents based on timestamps and show the mean of lines and size per minute or per hour.
 
 The tool will be useful when you want to check log size and trends before monitoring and visualizing logs on platforms such as elasticsearch.
 
 
 # Table of Contents
-- [logcounter](#logcounter)
+- [pylogcounter](#pylogcounter)
 - [Table of Contents](#table-of-contents)
 - [Install](#install)
 - [Usage](#usage)
@@ -19,12 +25,12 @@ The tool will be useful when you want to check log size and trends before monito
 # Install
 Install with pip
 ```
-$ pip install logcounter
+$ pip install pylogcounter
 ```
 
-Alternatively, you can pull a docker image from [dockerhub](https://hub.docker.com/repository/docker/docogawa/logcounter/general).
+Alternatively, you can pull a docker image from [dockerhub](https://hub.docker.com/repository/docker/docogawa/pylogcounter/general).
 ```
-# docker pull docogawa/logcounter
+# docker pull docogawa/pylogcounter
 ```
 
 # Usage
@@ -42,10 +48,10 @@ You need a log file to be parsed that meets the following requirements.
 
 
 ## Simple usage
-Run `logcounter` with `-f` option to pass the path to the log file. The results are shown on the stdout.
+Run `pylogcounter` with `-f` option to pass the path to the log file. The results are shown on the stdout.
 
 ```
-$ logcounter -f syslog
+$ pylogcounter -f syslog
 Kind : Total
 --------------------------------------------------------------------------------
 Item                        | Value                       | Unit
@@ -119,7 +125,7 @@ In each time section, resampled statistics are output for each period. For examp
 With `--only` option, show only the result of the specified time range. To display multiple time range, separate them by `,` such as `--only s,m,h`.
 
 ```
-$ logcounter -f syslog --only s,h
+$ pylogcounter -f syslog --only s,h
 Kind : Total
 --------------------------------------------------------------------------------
 Item                        | Value                       | Unit
@@ -157,7 +163,7 @@ Mean bytes                  | 138458.235                  | Byte/hour
 Use `-o yaml` in order to show the result in yaml syntax.
 
 ```yaml
-$ logcounter -f tmp/syslog -o yaml
+$ pylogcounter -f tmp/syslog -o yaml
 total:
   start_time: Jul 07 00:00:01
   end_time: Jul 07 16:55:07
@@ -196,7 +202,7 @@ daily:
 To change the unit of bytes, specify the byte prefix in the `-b` option. All byte units in the result are replaced by the specified unit.
 
 ```
-$ logcounter -f tmp/syslog --only m -b m
+$ pylogcounter -f tmp/syslog --only m -b m
 ind : Total
 --------------------------------------------------------------------------------
 Item                        | Value                       | Unit
@@ -222,13 +228,13 @@ Mean bytes                  | 0.002                       | MB/min
 ```
 
 ## Run docker
-If you use logcounter using docker image, run the following commands.
+If you use pylogcounter using docker image, run the following commands.
 
 - Mount the directory including a log to be parsed to `/work`
 
 
 ```
-# docker run -it --rm -v ${PWD}:/work docogawa/logcounter -f /work/syslog
+# docker run -it --rm -v ${PWD}:/work docogawa/pylogcounter -f /work/syslog
 ```
 
 ## Custom timestamp format
@@ -244,7 +250,7 @@ For example, . timestamp `2023-01-08T09:59:10.197397+0000` can be interpreted by
 [2023-01-08T10:00:22.197397+0000] debug test
 ...
 
-$ logcounter -f custom.log -t "%Y-%m-%dT%H:%M:%S.%f%z" --only s
+$ pylogcounter -f custom.log -t "%Y-%m-%dT%H:%M:%S.%f%z" --only s
 ----------------------------------------------------------------------------------------------------
 Item                                | Value                               | Unit
 ----------------------------------------------------------------------------------------------------
@@ -293,10 +299,10 @@ Mean bytes 50%                      | 2236.5                              | Byte
 
 
 ## Output to csv
-Run logcounter with `-c` option to write resampled data in each time range to csv. The results are stored in `logcounter_csv`.
+Run pylogcounter with `-c` option to write resampled data in each time range to csv. The results are stored in `pylogcounter_csv`.
 
 ```
-logcounter_csv
+pylogcounter_csv
 ├── daily.csv
 ├── hourly.csv
 ├── minutely.csv

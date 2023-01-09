@@ -50,7 +50,7 @@ class BaseCounter:
         self.df = mean
 
     def to_csv(self) -> None:
-        p = Path("logcounter_csv")
+        p = Path("pylogcounter_csv")
         p.mkdir(exist_ok=True)
 
         path = p / f"{self.kind.lower()}.csv"
