@@ -7,6 +7,7 @@ import pandas as pd
 
 from pylogcounter.counter import (
     BaseCounter,
+    CustomCounter,
     DailyCounter,
     HourlyCounter,
     MinutelyCounter,
@@ -29,6 +30,7 @@ class CLI:
         to_csv: bool = False,
         byte_unit: str = "b",
         loglevel: bool = False,
+        interval: str = "",
     ) -> None:
         self.file = infile
         self.output = output
@@ -38,6 +40,7 @@ class CLI:
         self.to_csv = to_csv
         self.verbose = verbose
         self.loglevel = loglevel
+        self.interval = interval
 
         self.csv_dir = "pylogcounter_csv"
         self.decimal = 3
@@ -71,7 +74,11 @@ class CLI:
         assert self.parser.timestamp_format is not None
         bc = BaseCounter(res, self.parser.columns, self.parser.timestamp_format)
         self.run_total_counter(bc.df)
-        self.run_counters(bc.df)
+
+        if self.interval != "":
+            self.run_custom_counter(bc.df, self.interval)
+        else:
+            self.run_counters(bc.df)
 
     def run_total_counter(self, df: pd.DataFrame) -> None:
         counter = TotalCounter(df)
@@ -86,6 +93,21 @@ class CLI:
 
         if self.to_csv is True:
             counter.to_csv(self.csv_dir)
+
+    def run_custom_counter(self, df: pd.DataFrame, time_range: str) -> None:
+        counter = CustomCounter(df, time_range)
+        if self.loglevel is True:
+            counter.split_log_columns()
+        counter.resample()
+        stat = Statistic(counter.df, decimal=self.decimal, time_unit=counter.time_unit, byte_unit=self.byte_unit)
+        stat.extract()
+
+        assert self.parser.timestamp_format is not None
+        writer = self.writer(stat, self.parser.timestamp_format, verbose=self.verbose)
+        writer.write(counter.kind, show_loglevel=self.loglevel)
+
+        if self.to_csv is True:
+            counter.to_csv()
 
     def run_counters(self, df: pd.DataFrame) -> None:
         counters = {
@@ -157,6 +179,7 @@ def main() -> None:
         help="Show only the result of the specify time range.",
     )
     parser.add_argument("-l", "--log", action="store_true", help="If set, count log level in a log.")
+    parser.add_argument("-i", "--interval", default="", help="Custom interval.")
 
     args = parser.parse_args()
 
@@ -179,5 +202,6 @@ def main() -> None:
         to_csv=args.csv,
         byte_unit=args.byte,
         loglevel=args.log,
+        interval=args.interval,
     )
     cli.run()

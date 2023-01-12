@@ -4,6 +4,7 @@ from datetime import datetime
 
 import numpy as np
 import yaml
+
 from pylogcounter.stat import Statistic
 
 
@@ -12,6 +13,8 @@ class Writer:
         self.stat = stat
         self.time_format = time_format
         self.verbose = verbose
+
+        self.stream = sys.stdout
 
 
 class StdoutWriter(Writer):
@@ -85,7 +88,7 @@ class YamlWriter(Writer):
         else:
             data = self._data(kind, self.verbose, show_loglevel)
         data = self.to_float(data)
-        yaml.dump(data, sys.stdout, sort_keys=False)
+        yaml.dump(data, self.stream, sort_keys=False)
 
     def to_float(self, data: dict):
         for k, v in data.items():
