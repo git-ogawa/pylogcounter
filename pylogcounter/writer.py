@@ -1,6 +1,6 @@
-import io
 import sys
 from datetime import datetime
+from typing import TextIO
 
 import numpy as np
 import yaml
@@ -9,7 +9,13 @@ from pylogcounter.stat import Statistic
 
 
 class Writer:
-    def __init__(self, stat: Statistic, time_format: str, verbose: bool = False, stream: io.TextIOBase = sys.stdout):
+    def __init__(
+        self,
+        stat: Statistic,
+        time_format: str,
+        verbose: bool = False,
+        stream: TextIO = sys.stdout,
+    ):
         self.stat = stat
         self.time_format = time_format
         self.verbose = verbose
@@ -18,7 +24,13 @@ class Writer:
 
 
 class StdoutWriter(Writer):
-    def __init__(self, stat: Statistic, time_format: str, verbose: bool = False, stream: io.TextIOBase = sys.stdout):
+    def __init__(
+        self,
+        stat: Statistic,
+        time_format: str,
+        verbose: bool = False,
+        stream: TextIO = sys.stdout,
+    ):
         super().__init__(stat, time_format, verbose=verbose, stream=stream)
         self.width = 100
         self.header = ["Item", "Value", "Unit"]
@@ -77,7 +89,13 @@ class StdoutWriter(Writer):
 
 
 class YamlWriter(Writer):
-    def __init__(self, stat: Statistic, time_format: str, verbose: bool = False, stream: io.TextIOBase = sys.stdout):
+    def __init__(
+        self,
+        stat: Statistic,
+        time_format: str,
+        verbose: bool = False,
+        stream: TextIO = sys.stdout,
+    ):
         super().__init__(stat, time_format, verbose=verbose, stream=stream)
 
     def write(self, kind: str, show_loglevel: bool = False):

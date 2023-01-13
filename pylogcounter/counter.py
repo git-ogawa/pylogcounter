@@ -163,9 +163,6 @@ class WeeklyCounter(BaseCounter):
     def count(self) -> None:
         super().count()
 
-    def to_csv(self) -> None:
-        super().to_csv()
-
 
 class CustomCounter(BaseCounter):
     unit = ""
@@ -184,9 +181,6 @@ class CustomCounter(BaseCounter):
 
     def count(self) -> None:
         super().count()
-
-    def to_csv(self) -> None:
-        super().to_csv()
 
 
 class TimeParse:
@@ -216,7 +210,7 @@ class TimeParse:
             raise Exception(f"Cannot parse {time}.")
 
         if len(m.groups()) != 2:
-            raise
+            raise Exception(f"Cannot parse {time}.")
 
         digit = int(m.group(1))
         unit = self._unit(str(m.group(2)))

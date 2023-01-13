@@ -58,7 +58,7 @@ class Parser:
                         t = LogLevelParser.sub(m.group(1))
                         d.extend([t])
                     else:
-                        raise ParserError(f"Log level cannot be parsed in line {line_num}.")
+                        raise LogLevelParserError(f"Log level cannot be parsed in line {line_num}.")
 
                 data.append(d)
                 line = f.readline()
@@ -167,4 +167,8 @@ class ParserError(Exception):
 
 
 class DirectiveError(Exception):
+    pass
+
+
+class LogLevelParserError(Exception):
     pass

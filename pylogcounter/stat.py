@@ -9,7 +9,13 @@ class Statistic:
 
     byte_table = {"b": "Byte", "k": "KB", "m": "MB", "g": "GB", "t": "TB"}
 
-    def __init__(self, df: pd.DataFrame, decimal: int = 10, time_unit: str = "", byte_unit: str = "b"):
+    def __init__(
+        self,
+        df: pd.DataFrame,
+        decimal: int = 10,
+        time_unit: str = "",
+        byte_unit: str = "b",
+    ):
         self.df = df
         self.decimal = decimal
         self.byte_unit = byte_unit

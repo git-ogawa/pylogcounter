@@ -14,7 +14,7 @@ from pylogcounter.counter import (
     SecondCounter,
     TotalCounter,
 )
-from pylogcounter.parse import DirectiveError, Parser, ParserError
+from pylogcounter.parse import DirectiveError, LogLevelParserError, Parser, ParserError
 from pylogcounter.stat import Statistic
 from pylogcounter.writer import StdoutWriter, YamlWriter
 
@@ -68,6 +68,9 @@ class CLI:
         except ParserError as e:
             print(e)
             sys.exit("Try to use a custom timestamp format. See usage for details.")
+        except LogLevelParserError as e:
+            print(e)
+            sys.exit("Check the log includes loglevel.")
         except DirectiveError:
             raise
 
@@ -84,7 +87,12 @@ class CLI:
         counter = TotalCounter(df)
         if self.loglevel is True:
             counter.split_log_columns()
-        stat = Statistic(counter.df, decimal=self.decimal, time_unit=counter.time_unit, byte_unit=self.byte_unit)
+        stat = Statistic(
+            counter.df,
+            decimal=self.decimal,
+            time_unit=counter.time_unit,
+            byte_unit=self.byte_unit,
+        )
         stat.extract()
 
         assert self.parser.timestamp_format is not None
@@ -99,7 +107,12 @@ class CLI:
         if self.loglevel is True:
             counter.split_log_columns()
         counter.resample()
-        stat = Statistic(counter.df, decimal=self.decimal, time_unit=counter.time_unit, byte_unit=self.byte_unit)
+        stat = Statistic(
+            counter.df,
+            decimal=self.decimal,
+            time_unit=counter.time_unit,
+            byte_unit=self.byte_unit,
+        )
         stat.extract()
 
         assert self.parser.timestamp_format is not None
@@ -107,7 +120,7 @@ class CLI:
         writer.write(counter.kind, show_loglevel=self.loglevel)
 
         if self.to_csv is True:
-            counter.to_csv()
+            counter.to_csv(self.csv_dir)
 
     def run_counters(self, df: pd.DataFrame) -> None:
         counters = {
@@ -125,7 +138,10 @@ class CLI:
 
                 counter.resample()  # type: ignore
                 stat = Statistic(
-                    counter.df, decimal=self.decimal, time_unit=counter.time_unit, byte_unit=self.byte_unit
+                    counter.df,
+                    decimal=self.decimal,
+                    time_unit=counter.time_unit,
+                    byte_unit=self.byte_unit,
                 )
                 stat.extract()
                 if stat.equal_start_end() is not True:
