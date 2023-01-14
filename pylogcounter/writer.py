@@ -1,74 +1,37 @@
 import sys
 from datetime import datetime
-from typing import Union
+from typing import TextIO
 
+import numpy as np
 import yaml
 
-from pylogcounter.counter import BaseCounter
+from pylogcounter.stat import Statistic
 
 
 class Writer:
-
-    byte_table = {"b": "Byte", "k": "KB", "m": "MB", "g": "GB", "t": "TB"}
-
     def __init__(
         self,
-        counter: BaseCounter,
+        stat: Statistic,
         time_format: str,
-        byte_unit: str = "b",
-        decimal_point: int = 3,
         verbose: bool = False,
+        stream: TextIO = sys.stdout,
     ):
-        self.counter = counter
+        self.stat = stat
         self.time_format = time_format
-
-        self.kind = self.counter.kind
-        self.decimal_point = decimal_point
-        self.time_unit = self.counter.time_unit
-        self.start_time = self.counter.start_time
-        self.end_time = self.counter.end_time
-        self.timedelta = self.counter.timedelta
-        self.total_bytes = self.counter.total_bytes
-        self.total_lines = self.counter.total_lines
-        self.mean_lines = self.counter.mean_lines
-        self.mean_lines_std = self.counter.mean_lines_std
-        self.mean_lines_max = self.counter.mean_lines_max
-        self.mean_lines_min = self.counter.mean_lines_min
-        self.mean_lines_50per = self.counter.mean_lines_50per
-        self.mean_bytes = self.counter.mean_bytes
-        self.mean_bytes_std = self.counter.mean_bytes_std
-        self.mean_bytes_max = self.counter.mean_bytes_max
-        self.mean_bytes_min = self.counter.mean_bytes_min
-        self.mean_bytes_50per = self.counter.mean_bytes_50per
-
-        self.byte_unit = byte_unit
         self.verbose = verbose
 
-    def convert_byte(self, val: Union[int, float]) -> float:
-        if self.byte_unit == "k":
-            return round(float(val / 1024), self.decimal_point)
-        elif self.byte_unit == "m":
-            return round(float(val / (1024**2)), self.decimal_point)
-        if self.byte_unit == "g":
-            return round(float(val / (1024**3)), self.decimal_point)
-        if self.byte_unit == "t":
-            return round(float(val / (1024**4)), self.decimal_point)
-        else:
-            return round(float(val), self.decimal_point)
-
-    def get_unit(self) -> str:
-        return Writer.byte_table.get(self.byte_unit, "Byte")
+        self.stream = sys.stdout
 
 
 class StdoutWriter(Writer):
     def __init__(
         self,
-        counter: BaseCounter,
+        stat: Statistic,
         time_format: str,
-        byte_unit: str = "b",
         verbose: bool = False,
+        stream: TextIO = sys.stdout,
     ):
-        super().__init__(counter, time_format, byte_unit, verbose=verbose)
+        super().__init__(stat, time_format, verbose=verbose, stream=stream)
         self.width = 100
         self.header = ["Item", "Value", "Unit"]
         self.columns = len(self.header)
@@ -77,93 +40,49 @@ class StdoutWriter(Writer):
         self._calc_width()
 
     def _calc_width(self):
-        self.col_width = int(
-            round(
-                (self.width - ((self.columns) - (self.columns - 1))) / self.columns, 0
-            )
-        )
+        self.col_width = int(round((self.width - ((self.columns) - (self.columns - 1))) / self.columns, 0))
         self.unit_width = int(round(self.col_width * self.unit_width_ratio, 0))
         space = self.col_width - self.unit_width
         self.col_width = int(round(self.col_width + (space / self.columns - 1)))
 
-    def write(self):
-        start_time = datetime.strftime(self.start_time, self.time_format)
-        end_time = datetime.strftime(self.end_time, self.time_format)
+    def write(self, kind: str, show_loglevel: bool = False):
+        cw = self.col_width
+        uw = self.unit_width
 
-        if self.time_unit == "":
+        start_time = datetime.strftime(self.stat.start_time, self.time_format)
+        end_time = datetime.strftime(self.stat.end_time, self.time_format)
+
+        if self.stat.time_unit == "":
             per_line = "Line"
-            per_byte = f"{self.get_unit()}"
+            per_byte = f"{self.stat.get_unit()}"
         else:
-            per_line = f"Line/{self.time_unit}"
-            per_byte = f"{self.get_unit()}/{self.time_unit}"
+            per_line = f"Line/{self.stat.time_unit}"
+            per_byte = f"{self.stat.get_unit()}/{self.stat.time_unit}"
 
-        print(f"Kind : {self.kind}")
+        print(f"Kind : {kind}")
         print("-" * self.width)
-        print(
-            f"{self.header[0]:<{self.col_width}}| {self.header[1]:<{self.col_width}}| {self.header[2]:<{self.unit_width}}"
-        )
+        print(f"{self.header[0]:<{cw}}| {self.header[1]:<{cw}}|" f"{self.header[2]:<{uw}}")
         print("-" * self.width)
-        print(
-            f"{'Start time':<{self.col_width}}| {start_time:<{self.col_width}}| {'':<{self.unit_width}}"
-        )
-        print(
-            f"{'End time':<{self.col_width}}| {end_time:<{self.col_width}}| {'':<{self.unit_width}}"
-        )
-        if self.kind == "Total":
-            print(
-                f"{'Elapsed time':<{self.col_width}}| {self.timedelta:<{self.col_width}}| {self.time_unit:<{self.unit_width}}"
-            )
-            print(
-                f"{'Total line':<{self.col_width}}| {self.total_lines:<{self.col_width}}| {'Line':<{self.unit_width}}"
-            )
-            byte = self.convert_byte(self.total_bytes)
-            u = self.get_unit()
-            print(
-                f"{'Total bytes':<{self.col_width}}| {byte:<{self.col_width}}| {u:<{self.unit_width}}"
-            )
-        ml = round(self.mean_lines, self.decimal_point)
-        print(
-            f"{'Mean line':<{self.col_width}}| {ml:<{self.col_width}}| {per_line:<{self.unit_width}}"
-        )
-        if self.verbose is True:
-            mx = round(self.mean_lines_max, self.decimal_point)
-            mi = round(self.mean_lines_min, self.decimal_point)
-            ms = round(self.mean_lines_std, self.decimal_point)
-            m5 = round(self.mean_lines_50per, self.decimal_point)
-            print(
-                f"{'Mean line max':<{self.col_width}}| {mx:<{self.col_width}}| {per_line:<{self.unit_width}}"
-            )
-            print(
-                f"{'Mean line min':<{self.col_width}}| {mi:<{self.col_width}}| {per_line:<{self.unit_width}}"
-            )
-            print(
-                f"{'Mean line std':<{self.col_width}}| {ms:<{self.col_width}}| {per_line:<{self.unit_width}}"
-            )
-            print(
-                f"{'Mean line 50%':<{self.col_width}}| {m5:<{self.col_width}}| {per_line:<{self.unit_width}}"
-            )
+        print(f"{'Start time':<{cw}}| {start_time:<{cw}}| {'':<{uw}}")
+        print(f"{'End time':<{cw}}| {end_time:<{cw}}| {'':<{uw}}")
+        if kind == "Total":
+            print(f"{'Elapsed time':<{cw}}| {self.stat.timedelta:<{cw}}|" f"{self.stat.time_unit:<{uw}}")
+            print(f"{'Total line':<{cw}}| {self.stat.total_lines:<{cw}}| {'Line':<{uw}}")
+            print(f"{'Total bytes':<{cw}}| {self.stat.total_bytes:<{cw}}| {self.stat.get_unit():<{uw}}")
 
-        mb = self.convert_byte(self.mean_bytes)
-        print(
-            f"{'Mean bytes':<{self.col_width}}| {mb:<{self.col_width}}| {per_byte:<{self.unit_width}}"
-        )
+        print(f"{'Mean line':<{cw}}| {self.stat.lines['mean']:<{cw}}| {per_line:<{uw}}")
         if self.verbose is True:
-            mx = self.convert_byte(self.mean_bytes_max)
-            mi = self.convert_byte(self.mean_bytes_min)
-            ms = self.convert_byte(self.mean_bytes_std)
-            m5 = self.convert_byte(self.mean_bytes_50per)
-            print(
-                f"{'Mean bytes max':<{self.col_width}}| {mx:<{self.col_width}}| {per_byte:<{self.unit_width}}"
-            )
-            print(
-                f"{'Mean bytes min':<{self.col_width}}| {mi:<{self.col_width}}| {per_byte:<{self.unit_width}}"
-            )
-            print(
-                f"{'Mean bytes std':<{self.col_width}}| {ms:<{self.col_width}}| {per_byte:<{self.unit_width}}"
-            )
-            print(
-                f"{'Mean bytes 50%':<{self.col_width}}| {m5:<{self.col_width}}| {per_byte:<{self.unit_width}}"
-            )
+            print(f"{'Mean line max':<{cw}}| {self.stat.lines['max']:<{cw}}| {per_line:<{uw}}")
+            print(f"{'Mean line min':<{cw}}| {self.stat.lines['min']:<{cw}}| {per_line:<{uw}}")
+            print(f"{'Mean line std':<{cw}}| {self.stat.lines['std']:<{cw}}| {per_line:<{uw}}")
+            print(f"{'Mean line 50%':<{cw}}| {self.stat.lines['50%']:<{cw}}| {per_line:<{uw}}")
+
+        print(f"{'Mean bytes':<{cw}}| {self.stat.bytes['mean']:<{cw}}| {per_byte:<{uw}}")
+        if self.verbose is True:
+            print(f"{'Mean bytes max':<{cw}}| {self.stat.bytes['max']:<{cw}}| {per_byte:<{uw}}")
+            print(f"{'Mean bytes min':<{cw}}| {self.stat.bytes['min']:<{cw}}| {per_byte:<{uw}}")
+            print(f"{'Mean bytes std':<{cw}}| {self.stat.bytes['std']:<{cw}}| {per_byte:<{uw}}")
+            print(f"{'Mean bytes 50%':<{cw}}| {self.stat.bytes['50%']:<{cw}}| {per_byte:<{uw}}")
 
         print("-" * self.width)
         print()
@@ -172,92 +91,98 @@ class StdoutWriter(Writer):
 class YamlWriter(Writer):
     def __init__(
         self,
-        counter: BaseCounter,
+        stat: Statistic,
         time_format: str,
-        byte_unit: str = "b",
         verbose: bool = False,
+        stream: TextIO = sys.stdout,
     ):
-        super().__init__(counter, time_format, byte_unit, verbose=verbose)
+        super().__init__(stat, time_format, verbose=verbose, stream=stream)
 
-    def _to_float(self, val) -> float:
-        return round(float(val), self.decimal_point)
+    def write(self, kind: str, show_loglevel: bool = False):
 
-    def write(self):
-        start_time = datetime.strftime(self.start_time, self.time_format)
-        end_time = datetime.strftime(self.end_time, self.time_format)
-
-        kind = self.kind.lower()
+        kind = kind.lower()
         if kind == "total":
-            if self.verbose is True:
-                data = {
-                    kind: {
-                        "start_time": start_time,
-                        "end_time": end_time,
-                        "elapsed_time": self._to_float(self.timedelta),
-                        "total_lines": int(self.total_lines),
-                        "total_bytes": self.convert_byte(self.total_bytes),
-                        "mean_lines": {
-                            "value": self._to_float(self.mean_lines),
-                            "max": self._to_float(self.mean_lines_max),
-                            "min": self._to_float(self.mean_lines_min),
-                            "std": self._to_float(self.mean_lines_std),
-                            "50%": self._to_float(self.mean_lines_50per),
-                        },
-                        "mean_bytes": {
-                            "value": self.convert_byte(self.mean_bytes),
-                            "max": self.convert_byte(self.mean_bytes_max),
-                            "min": self.convert_byte(self.mean_bytes_min),
-                            "std": self.convert_byte(self.mean_bytes_std),
-                            "50%": self.convert_byte(self.mean_bytes_50per),
-                        },
-                        "byte_unit": self.get_unit().lower(),
-                    }
-                }
-            else:
-                data = {
-                    kind: {
-                        "start_time": start_time,
-                        "end_time": end_time,
-                        "elapsed_time": self._to_float(self.timedelta),
-                        "total_lines": int(self.total_lines),
-                        "total_bytes": self.convert_byte(self.total_bytes),
-                        "mean_lines": self._to_float(self.mean_lines),
-                        "mean_bytes": self.convert_byte(self.mean_bytes),
-                        "byte_unit": self.get_unit().lower(),
-                    }
-                }
+            data = self._total_data(kind, self.verbose, show_loglevel)
         else:
-            if self.verbose is True:
-                data = {
-                    kind: {
-                        "start_time": start_time,
-                        "end_time": end_time,
-                        "mean_lines": {
-                            "value": self._to_float(self.mean_lines),
-                            "max": self._to_float(self.mean_lines_max),
-                            "min": self._to_float(self.mean_lines_min),
-                            "std": self._to_float(self.mean_lines_std),
-                            "50%": self._to_float(self.mean_lines_50per),
-                        },
-                        "mean_bytes": {
-                            "value": self.convert_byte(self.mean_bytes),
-                            "max": self.convert_byte(self.mean_bytes_max),
-                            "min": self.convert_byte(self.mean_bytes_min),
-                            "std": self.convert_byte(self.mean_bytes_std),
-                            "50%": self.convert_byte(self.mean_bytes_50per),
-                        },
-                        "byte_unit": self.get_unit().lower(),
-                    }
-                }
-            else:
-                data = {
-                    kind: {
-                        "start_time": start_time,
-                        "end_time": end_time,
-                        "mean_lines": self._to_float(self.mean_lines),
-                        "mean_bytes": self.convert_byte(self.mean_bytes),
-                        "byte_unit": self.get_unit().lower(),
-                    }
-                }
+            data = self._data(kind, self.verbose, show_loglevel)
+        data = self.to_float(data)
+        yaml.dump(data, self.stream, sort_keys=False)
 
-        yaml.dump(data, sys.stdout, sort_keys=False)
+    def to_float(self, data: dict):
+        for k, v in data.items():
+            if isinstance(v, np.float64):
+                data[k] = float(v)
+            if isinstance(v, np.int64):
+                data[k] = int(v)
+
+            if isinstance(v, dict):
+                self.to_float(v)
+
+        return data
+
+    def _total_data(self, kind: str, verbose: bool, show_loglevel: bool) -> dict:
+        start_time = datetime.strftime(self.stat.start_time, self.time_format)
+        end_time = datetime.strftime(self.stat.end_time, self.time_format)
+
+        data = {
+            kind: {
+                "start_time": start_time,
+                "end_time": end_time,
+                "elapsed_time": self.stat.timedelta,
+                "total_lines": self.stat.total_lines,
+                "total_bytes": self.stat.total_bytes,
+                "mean_lines": self.stat.lines["mean"],
+                "mean_bytes": self.stat.bytes["mean"],
+                "byte_unit": self.stat.get_unit().lower(),
+            }
+        }
+        if verbose is True:
+            data[kind].pop("mean_lines")
+            data[kind].pop("mean_bytes")
+            data[kind]["lines"] = {p: self.stat.lines[p] for p in self.stat.properties}
+            data[kind]["bytes"] = {p: self.stat.bytes[p] for p in self.stat.properties}
+
+        if show_loglevel is True:
+            data[kind]["log"] = {}
+            for level, prop in self.stat.log_levels.items():
+                data[kind]["log"][level] = {}
+                for k, v in prop.items():
+                    if verbose is True:
+                        data[kind]["log"][level][k] = v
+                    else:
+                        if k == "mean":
+                            data[kind]["log"][level] = v
+
+        return data
+
+    def _data(self, kind: str, verbose: bool, show_loglevel: bool) -> dict:
+        start_time = datetime.strftime(self.stat.start_time, self.time_format)
+        end_time = datetime.strftime(self.stat.end_time, self.time_format)
+
+        data = {
+            kind: {
+                "start_time": start_time,
+                "end_time": end_time,
+                "lines": self.stat.lines["mean"],
+                "bytes": self.stat.bytes["mean"],
+                "byte_unit": self.stat.get_unit().lower(),
+            }
+        }
+        if verbose is True:
+            data[kind].pop("lines")
+            data[kind].pop("bytes")
+            data[kind]["lines"] = {p: self.stat.lines[p] for p in self.stat.properties}
+            data[kind]["bytes"] = {p: self.stat.bytes[p] for p in self.stat.properties}
+
+        if show_loglevel is True:
+            data[kind]["log"] = {}
+            for level, prop in self.stat.log_levels.items():
+                data[kind]["log"][level] = {}
+                for k, v in prop.items():
+                    if verbose is True:
+                        data[kind]["log"][level][k] = v
+                    else:
+                        if k == "mean":
+                            data[kind]["log"][level] = v
+
+        return data

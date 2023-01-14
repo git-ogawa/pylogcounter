@@ -1,7 +1,10 @@
+import re
 from pathlib import Path
-from typing import List
+from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
+
+from pylogcounter.parse import LogLevelParser
 
 
 class BaseCounter:
@@ -25,16 +28,17 @@ class BaseCounter:
         self.timedelta = self._timedelta()
 
         stat = self.df.describe()
-        self.mean_lines = stat["line"]["mean"]
-        self.mean_lines_std = stat["line"]["std"]
-        self.mean_lines_max = stat["line"]["max"]
-        self.mean_lines_min = stat["line"]["min"]
-        self.mean_lines_50per = stat["line"]["50%"]
-        self.mean_bytes = stat["bytes"]["mean"]
-        self.mean_bytes_std = stat["bytes"]["std"]
-        self.mean_bytes_max = stat["bytes"]["max"]
-        self.mean_bytes_min = stat["bytes"]["min"]
-        self.mean_bytes_50per = stat["bytes"]["50%"]
+        self.properties = ["mean", "std", "max", "min", "50%"]
+        self.lines = {p: stat["line"][p] for p in self.properties}
+        self.bytes = {p: stat["bytes"][p] for p in self.properties}
+
+        if LogLevelParser.total in self.df.columns:
+            self.log_levels = {}
+            for level in LogLevelParser.levels:
+                data: Dict[str, Dict[str, float]] = {level: {}}
+                for prop in self.properties:
+                    data[level][prop] = stat[level][prop]
+                self.log_levels.update(data)
 
     def _timedelta(self) -> int:
         elapse = self.end_time - self.start_time
@@ -42,37 +46,47 @@ class BaseCounter:
 
     def _resample(self, unit: str, method: str = "mean") -> None:
         r = self.df.resample(unit, origin="start")
-        mean = r.mean()
+        # Sum dataframe
+        _sum = r.sum(numeric_only=True)
+        self.df = _sum
 
-        _sum = r.sum()
-        mean["bytes"] = _sum["bytes"]
-        mean["line"] = _sum["line"]
-        self.df = mean
-
-    def to_csv(self) -> None:
-        p = Path("pylogcounter_csv")
+    def to_csv(self, base_dir: str = ".") -> str:
+        p = Path(base_dir)
         p.mkdir(exist_ok=True)
 
         path = p / f"{self.kind.lower()}.csv"
         self.df.to_csv(path)
+        return str(path)
 
-    def equal_start_end(self) -> bool:
-        start = self.df.index[0]
-        end = self.df.index[len(self.df.index) - 1]
-        if start == end:
-            return True
-        return False
+    def _replace(self, x: str, level: str) -> int:
+        if x == level:
+            return 1
+        else:
+            return 0
+
+    def split_log_columns(self) -> None:
+        for level in LogLevelParser.levels:
+            tmp = self.df.copy()
+            try:
+                col = tmp["log_level"].apply(lambda x: self._replace(x, level))
+                self.df[level] = col
+            except KeyError:
+                raise KeyError("Columns 'log_level' dose not exist in dataframe.")
+
+        # Add total count
+        self.add_total_column()
+
+    def add_total_column(self) -> None:
+        self.df[LogLevelParser.total] = self.df[LogLevelParser.levels].sum(axis=1)
 
 
 class TotalCounter(BaseCounter):
     kind = "Total"
     unit = ""
+    time_unit = ""
 
     def __init__(self, df: pd.DataFrame) -> None:
         self.df = df
-
-    def to_csv(self) -> None:
-        super().to_csv()
 
 
 class SecondCounter(BaseCounter):
@@ -82,13 +96,12 @@ class SecondCounter(BaseCounter):
 
     def __init__(self, df: pd.DataFrame) -> None:
         self.df = df
+
+    def resample(self):
         super()._resample(SecondCounter.unit)
 
     def count(self) -> None:
         super().count()
-
-    def to_csv(self) -> None:
-        super().to_csv()
 
 
 class MinutelyCounter(BaseCounter):
@@ -98,13 +111,12 @@ class MinutelyCounter(BaseCounter):
 
     def __init__(self, df: pd.DataFrame) -> None:
         self.df = df
+
+    def resample(self):
         super()._resample(MinutelyCounter.unit)
 
     def count(self) -> None:
         super().count()
-
-    def to_csv(self) -> None:
-        super().to_csv()
 
 
 class HourlyCounter(BaseCounter):
@@ -114,13 +126,12 @@ class HourlyCounter(BaseCounter):
 
     def __init__(self, df: pd.DataFrame) -> None:
         self.df = df
+
+    def resample(self):
         super()._resample(HourlyCounter.unit)
 
     def count(self) -> None:
         super().count()
-
-    def to_csv(self) -> None:
-        super().to_csv()
 
 
 class DailyCounter(BaseCounter):
@@ -130,13 +141,12 @@ class DailyCounter(BaseCounter):
 
     def __init__(self, df: pd.DataFrame) -> None:
         self.df = df
+
+    def resample(self):
         super()._resample(DailyCounter.unit)
 
     def count(self) -> None:
         super().count()
-
-    def to_csv(self) -> None:
-        super().to_csv()
 
 
 class WeeklyCounter(BaseCounter):
@@ -146,10 +156,65 @@ class WeeklyCounter(BaseCounter):
 
     def __init__(self, df: pd.DataFrame) -> None:
         self.df = df
+
+    def resample(self):
         super()._resample(WeeklyCounter.unit)
 
     def count(self) -> None:
         super().count()
 
-    def to_csv(self) -> None:
-        super().to_csv()
+
+class CustomCounter(BaseCounter):
+    unit = ""
+    kind = "Custom"
+    time_unit = ""
+
+    def __init__(self, df: pd.DataFrame, time_range: str) -> None:
+        self.df = df
+        self.time_range = time_range
+
+        digit, unit = TimeParse().parse(self.time_range)
+        self.interval = f"{digit}{unit}"
+
+    def resample(self):
+        super()._resample(self.interval)
+
+    def count(self) -> None:
+        super().count()
+
+
+class TimeParse:
+
+    # {resample time unit in pandas: acceptable expressions}
+    units = {
+        "S": ["s", "sec"],
+        "min": ["m", "min"],
+        "H": ["h", "hour"],
+        "D": ["d", "day"],
+        "W": ["w", "week"],
+        "M": ["M", "month"],
+    }
+
+    def __init__(self):
+        pass
+
+    def _unit(self, target: str) -> Optional[str]:
+        for k, v in TimeParse.units.items():
+            if target in v:
+                return k
+        return None
+
+    def parse(self, time: str) -> Tuple[int, str]:
+        m = re.search("([0-9]+)([a-zA-Z]+)", time)
+        if m is None:
+            raise Exception(f"Cannot parse {time}.")
+
+        if len(m.groups()) != 2:
+            raise Exception(f"Cannot parse {time}.")
+
+        digit = int(m.group(1))
+        unit = self._unit(str(m.group(2)))
+        if unit is None:
+            raise Exception(f"{time} is invalid datetime unit.")
+
+        return digit, unit

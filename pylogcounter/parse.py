@@ -5,6 +5,7 @@ from typing import List, Optional, Tuple
 class Parser:
 
     timestamp = "timestamp"
+    log_level = "log_level"
     byte = "bytes"
     line = "line"
 
@@ -13,7 +14,6 @@ class Parser:
         self.timestamp_format = timestamp_format
         self.timestamp_pattern: Optional[str] = ""
         self.timestamp_type: Optional[str] = None
-        self.columns = [Parser.timestamp, Parser.byte, Parser.line]
 
     def precheck(self) -> None:
         self.set_timestamp_type()
@@ -32,22 +32,38 @@ class Parser:
             else:
                 raise ParserError(f"Timestamp cannot be parsed in {self.file}.")
 
-    def parse(self) -> List[List]:
-        pattern = re.compile(f"({self.timestamp_pattern})")
-        d = []
+    def parse(self, extract_level: bool = False) -> List[List]:
+        time_pattern = re.compile(f"({self.timestamp_pattern})")
+        self.columns = [Parser.timestamp, Parser.byte, Parser.line]
+        if extract_level is True:
+            level_pattern = re.compile(LogLevelParser.pattern)
+            self.columns.append(Parser.log_level)
+
+        data = []
         line_num = 0
         with open(self.file, "r") as f:
             line = f.readline()
             line_num += 1
             while line:
-                m = pattern.search(line)
+                m = time_pattern.search(line)
+                d = []
                 if m is not None:
-                    d.append([m.group(1), len(line.encode()), 1])
+                    d.extend([m.group(1), len(line.encode()), 1])
                 else:
                     raise ParserError(f"Timestamp cannot be parsed in line {line_num}.")
+
+                if extract_level is True:
+                    m = level_pattern.search(line)
+                    if m is not None:
+                        t = LogLevelParser.sub(m.group(1))
+                        d.extend([t])
+                    else:
+                        raise LogLevelParserError(f"Log level cannot be parsed in line {line_num}.")
+
+                data.append(d)
                 line = f.readline()
                 line_num += 1
-        return d
+        return data
 
 
 class TimeString:
@@ -93,9 +109,7 @@ class TimeString:
     def __init__(self) -> None:
         pass
 
-    def extract(
-        self, string: str
-    ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    def extract(self, string: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         for t in TimeString.patterns:
             m = re.search(f"({t['pattern']})", string)
             if m is not None:
@@ -125,9 +139,36 @@ class TimeString:
             raise KeyError(f"{c} not found")
 
 
+class LogLevelParser:
+
+    total = "log_total_count"
+    levels = ["alert", "debug", "notice", "info", "warn", "error", "critical", "fatal"]
+    pattern = (
+        "([Aa]lert|ALERT|[Dd]ebug|DEBUG|[Nn]otice|NOTICE|[Ii]nfo|INFO|[Ww]arn?(?:ing)?|WARN?(?:ING)?"
+        "|[Ee]rr?(?:or)?|ERR?(?:OR)?|[Cc]rit?(?:ical)?|CRIT?(?:ICAL)?|[Ff]atal|FATAL)"
+    )
+
+    @classmethod
+    def sub(cls, target: str) -> str:
+        t = target.lower()
+
+        if t == "err":
+            t = re.sub("err", "error", t)
+        if t == "warning":
+            t = re.sub("warning", "warn", t)
+        if t == "crit":
+            t = re.sub("crit", "critical", t)
+
+        return t
+
+
 class ParserError(Exception):
     pass
 
 
 class DirectiveError(Exception):
+    pass
+
+
+class LogLevelParserError(Exception):
     pass
